@@ -1,0 +1,35 @@
+/* Navbar styling */
+.navbar {
+  background-color: #282c34; /* Navbar background */
+  padding: 1rem;
+  color: white;
+  position: sticky;
+  top: 0;
+  width: 100%;
+  z-index: 1000;
+}
+
+.navbar-content {
+  display: flex;
+  justify-content: space-between; /* Left and right layout */
+  align-items: center;
+}
+
+.left-section {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.right-section .connect-button {
+  background-color: #61dafb; /* Button color */
+  border: none;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  color: #282c34;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.right-section .connect-button:hover {
+  background-color: #21a1f1;
+}
