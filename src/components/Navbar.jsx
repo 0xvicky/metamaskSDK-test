@@ -2,103 +2,107 @@ import React, {useState, useEffect} from "react";
 import {useSDK} from "@metamask/sdk-react";
 
 const Navbar = () => {
-  const [account, setAccount] = useState();
-  const {sdk, connected, connecting, provider, chainId} = useSDK();
+  const [account, setAccount] = useState(null);
+  const {sdk, connected, chainId} = useSDK();
+  const targetChainId = "0x5618"; // Target Chain (Airdao Testnet)
 
+  // Switch network if connected and not on the desired chain
   useEffect(() => {
-    if (connected && chainId !== "0x5618") {
-      switchNetwork();
+    const {ethereum} = window;
+
+    if (connected && chainId !== targetChainId) {
+      switchNetwork(ethereum);
     }
-  }, [chainId]);
+  }, [chainId, connected]);
 
-  const switchNetwork = async () => {
-    if (typeof window.ethereum !== "undefined") {
-      const {ethereum} = window;
+  // Track account changes in MetaMask
+  useEffect(() => {
+    const {ethereum} = window;
+    if (ethereum && ethereum.isMetaMask) {
+      const handleAccountsChanged = accounts => {
+        setAccount(accounts.length > 0 ? accounts[0] : null);
+      };
 
-      const targetChainId = "0x5618"; // Example: Ethereum Mainnet (Hex: 0x1)
-      try {
-        // Specify the desired chainId (in hexadecimal)
-        const chainId = await ethereum.request({method: "eth_chainId"});
+      ethereum
+        .request({method: "eth_accounts"})
+        .then(handleAccountsChanged)
+        .catch(console.error);
+      ethereum.on("accountsChanged", handleAccountsChanged);
 
-        // Check if already connected to the desired chain
-        if (chainId !== targetChainId) {
-          console.log(`Current chain: ${chainId}, switching to ${targetChainId}`);
-
-          // Attempt to switch the chain
-          await ethereum.request({
-            method: "wallet_switchEthereumChain",
-            params: [{chainId: targetChainId}]
-          });
-
-          // setCurrentChain(targetChainId);
-          console.log(`Successfully switched to chain ${targetChainId}`);
-        } else {
-          console.log("Already connected to the correct chain");
-        }
-      } catch (error) {
-        console.log("got into error");
-        if (error.code === 4902) {
-          // Chain not found, prompt user to add the network
-          try {
-            console.log("in try");
-            await ethereum.request({
-              method: "wallet_addEthereumChain",
-              params: [
-                {
-                  chainId: targetChainId,
-                  chainName: "Airdao Testnet",
-                  nativeCurrency: {
-                    name: "AMB",
-                    symbol: "AMB",
-                    decimals: 18
-                  },
-                  rpcUrls: ["https://network.ambrosus-test.io/"], // Replace with your RPC URL
-                  blockExplorerUrls: ["https://testnet.airdao.io/explorer/"]
-                }
-              ]
-            });
-            console.log("Network added and switched");
-            // setCurrentChain(targetChainId);
-          } catch (addError) {
-            console.error("Error adding the chain:", addError);
-          }
-        } else {
-          console.error("Error switching chain:", error);
-        }
-      }
+      return () => ethereum.removeListener("accountsChanged", handleAccountsChanged);
     } else {
-      console.log("MetaMask not detected!");
+      console.log("MetaMask is not installed.");
+    }
+  }, []);
+
+  // Function to switch network
+  const switchNetwork = async ethereum => {
+    try {
+      const currentChainId = await ethereum.request({method: "eth_chainId"});
+      if (currentChainId !== targetChainId) {
+        await ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{chainId: targetChainId}]
+        });
+        console.log(`Switched to chain ${targetChainId}`);
+      }
+    } catch (error) {
+      handleSwitchError(error, ethereum);
     }
   };
 
+  // Handle chain switching error
+  const handleSwitchError = async (error, ethereum) => {
+    if (error.code === 4902) {
+      // Chain not found, add and switch
+      try {
+        await ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [
+            {
+              chainId: targetChainId,
+              chainName: "Airdao Testnet",
+              nativeCurrency: {
+                name: "AMB",
+                symbol: "AMB",
+                decimals: 18
+              },
+              rpcUrls: ["https://network.ambrosus-test.io/"],
+              blockExplorerUrls: ["https://testnet.airdao.io/explorer/"]
+            }
+          ]
+        });
+        console.log("Network added and switched");
+      } catch (addError) {
+        console.error("Error adding the chain:", addError);
+      }
+    } else {
+      console.error("Error switching chain:", error);
+    }
+  };
+
+  // Connect MetaMask wallet
   const connect = async () => {
     try {
       const accounts = await sdk?.connect();
       setAccount(accounts?.[0]);
-      console.log(chainId);
-      console.log(provider);
     } catch (err) {
-      console.warn("failed to connect..", err);
+      console.warn("Failed to connect:", err);
     }
   };
-  const test = () => {
-    console.log(connected);
-  };
+
   return (
     <div className='App'>
       <button
         style={{padding: 10, margin: 10}}
         onClick={connect}>
-        Connect
+        {connected ? "Connected" : "Connect"}
       </button>
-      <button onClick={test}>Test</button>
+
       {connected && (
         <div>
-          <>
-            {chainId && `Connected chain: ${chainId}`}
-            <p></p>
-            {account && `Connected account: ${account}`}
-          </>
+          {chainId && <p>Connected chain: {chainId}</p>}
+          {account && <p>Connected account: {account}</p>}
         </div>
       )}
     </div>
